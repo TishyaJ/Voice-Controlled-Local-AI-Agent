@@ -3,7 +3,7 @@ audio_processor.py — Handles all audio I/O and Speech-to-Text via Groq Whisper
 
 Why Groq instead of local Whisper?
 ───────────────────────────────────
-Running whisper-large locally on a CPU-only Windows machine requires ~4 GB RAM and
+Running whisper-large locally on my CPU-only Windows machine requires ~4 GB RAM and
 takes 30–120 s per utterance, making the UX unusable. Groq's hosted Whisper endpoint
 delivers sub-second transcription with a free tier, so the CPU is kept free for
 Ollama inference. This choice is documented in README.md.
