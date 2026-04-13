@@ -1,29 +1,33 @@
 # 🎙️ Voice-Controlled Local AI Agent
 
-A production-ready voice agent that transcribes speech, classifies intent, and executes local tools — all from a premium split-screen Streamlit UI.
+A production-ready voice agent that transcribes speech, classifies intent, and executes local tools using a modern, chat-first UI. Built specifically for CPU-only Windows environments.
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python)](https://python.org)
 [![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B?logo=streamlit)](https://streamlit.io)
 [![Groq](https://img.shields.io/badge/STT-Groq_Whisper-orange)](https://console.groq.com)
-[![Ollama](https://img.shields.io/badge/LLM-Ollama_qwen-green)](https://ollama.ai)
+[![Ollama](https://img.shields.io/badge/LLM-Ollama_qwen2.5-green)](https://ollama.ai)
 
 ---
 
-## 📐 Architecture
+## 📐 Architecture Explanation
 
-```
+The system is designed with a **"Chat-First" UI layout** that mimics modern AI clients like ChatGPT or Claude, keeping the technical complexity hidden but accessible.
+
+```text
           ┌──────────────────────────────────┐
           │        Streamlit UI (app.py)      │
-          │  Left (60%) │  Right (40%)        │
-          │  Controls   │  Chat History        │
-          └──────┬───────────────────────────┘
-                 │
-         ┌───────▼────────┐
-         │ audio_processor│  ──►  Groq Whisper API  ──►  transcript
-         └───────┬────────┘
-                 │
-         ┌───────▼────────────────────┐
-         │  LangChain + Ollama (qwen) │  ──►  JSON array of actions
+          │  Sidebar:      │ Main Canvas:     │
+          │  Mic / Upload  │ Chat Bubbles &   │
+          │  Output Files  │ Pinned Input     │
+          └──────┬─────────┴─────────┬───────┘
+                 │                   │
+         ┌───────▼────────┐          │
+         │ audio_processor│          │
+         │ (Groq Whisper) │          │
+         └───────┬────────┘          │
+                 │transcript         │
+         ┌───────▼───────────────────▼┐
+         │  LangChain + Ollama (Local)│  ──► JSON Action Array
          └───────┬────────────────────┘
                  │
          ┌───────▼────────┐
@@ -33,146 +37,92 @@ A production-ready voice agent that transcribes speech, classifies intent, and e
            output/ (sandboxed)
 ```
 
-### Key Components
-
-| File | Responsibility |
-|------|---------------|
-| `app.py` | Streamlit UI, LangChain orchestration, Human-in-the-Loop, compound command loop |
-| `audio_processor.py` | Groq Whisper transcription, mic recording, file upload support |
-| `tools.py` | Tool implementations with output/ directory safety constraint |
-| `.env` | API keys and model configuration |
+**Workflow:**
+1. **Input:** Audio is captured via `sounddevice` or uploaded, then sent to `audio_processor.py`.
+2. **STT:** Audio is converted to text.
+3. **Brain:** The text along with conversation history is sent to a local Ollama model (`qwen2.5:1.5b`). The prompt forces the model to output a strictly formatted JSON array of actions.
+4. **Execution:** The JSON is parsed by `app.py`. Safe actions execute immediately. Dangerous actions (`create_file`, `write_code`) trigger a "Human-in-the-Loop" pause, rendering Approve/Deny buttons inline in the chat.
+5. **Output:** Results are presented in native chat bubbles. Technical execution steps are tucked inside a `⚙️ View Execution Steps` expander to keep the UI clean.
 
 ---
 
-## ⚡ Quick Start
+## 🛠️ Hardware Workarounds Used
+
+This project was built on a **CPU-only Windows machine**. To achieve real-time usability, two major architectural trade-offs were made:
+
+### 1. STT: Groq API instead of Local Whisper
+Running `openai/whisper-large-v3` locally purely on a CPU requires ~4 GB RAM and takes **30–120 seconds** to transcribe a 5-second utterance. This makes a voice UI completely unusable. 
+* **Workaround:** We utilize the free **Groq Whisper API endpoint**. This delivers sub-second transcription and offloads the heavy processing, keeping the local CPU completely free for the LLM inference.
+
+### 2. LLM: `qwen2.5:1.5b` instead of larger models
+Running a 7B+ or 8B+ parameter model (like Llama 3 8B) on CPU results in agonizingly slow token generation. Even a 3B-4B Vision model proved too slow.
+* **Workaround:** We explicitly target **`qwen2.5:1.5b`**. At under 1GB of memory, it is incredibly fast on CPU (generating responses in 2-4 seconds) while still being highly capable of strict JSON instruction-following. We further optimized this in Python by setting `num_predict=256` and `num_ctx=2048` to prevent the CPU from churning on unnecessary context.
+
+---
+
+## ⚡ Setup Instructions
 
 ### Prerequisites
+- **Python 3.10+** installed
+- **Ollama** installed and running: [Download here](https://ollama.ai)
+- **Groq API key** (free): [Get one here](https://console.groq.com)
+- A working microphone
 
-- **Python 3.10+**
-- **Ollama** installed and running: [https://ollama.ai](https://ollama.ai)
-- **Groq API key** (free): [https://console.groq.com](https://console.groq.com)
-- A working microphone (for mic input)
+### 1. Clone & Install Environment
+```powershell
+git clone https://github.com/TishyaJ/Voice-Controlled-Local-AI-Agent.git
+cd Voice-Controlled-Local-AI-Agent
 
-### 1. Clone & Install
-
-```bash
-git clone https://github.com/YOUR_USERNAME/voice-ai-agent.git
-cd voice-ai-agent
-
-# Create a virtual environment (recommended)
+# It is highly recommended to use a virtual environment
 python -m venv .venv
-.venv\Scripts\activate        # Windows
-# source .venv/bin/activate   # macOS/Linux
+.\.venv\Scripts\activate
 
+# Install all required packages
 pip install -r requirements.txt
 ```
 
-### 2. Pull the Ollama Model
-
-```bash
-ollama pull qwen2.5:3b
-# If you prefer a different tag:
-# ollama pull qwen:4b
+### 2. Pull the Local AI Model
+Ensure the Ollama app is running on your machine, then open a terminal and pull the lightweight Qwen model:
+```powershell
+ollama pull qwen2.5:1.5b
 ```
 
-### 3. Configure Environment
-
-```bash
-copy .env.example .env    # Windows
-# cp .env.example .env    # macOS/Linux
+### 3. Configure the `.env` File
+Copy the example environment file:
+```powershell
+copy .env.example .env
 ```
-
-Edit `.env`:
+Open `.env` in a text editor and add your Groq API key:
 ```env
-GROQ_API_KEY=your_groq_api_key_here
-OLLAMA_MODEL=qwen2.5:3b
+GROQ_API_KEY=gsk_your_actual_key_here
+OLLAMA_MODEL=qwen2.5:1.5b
 ```
 
-### 4. Run
-
-```bash
-streamlit run app.py
+### 4. Run the Agent
+Make sure your virtual environment is activated, then launch Streamlit:
+```powershell
+python -m streamlit run app.py
 ```
-
-Open [http://localhost:8501](http://localhost:8501) in your browser.
+*The UI will automatically open in your browser at `http://localhost:8501`.*
 
 ---
 
-## 🎯 Supported Intents
+## 🎯 Supported Features & Intents
 
-| Intent | Trigger phrase examples | Tool |
-|--------|------------------------|------|
-| **General Chat** | "What is machine learning?", "Tell me a joke" | `general_chat()` |
-| **Summarize Text** | "Summarize this: …", "Give me a summary of …" | `summarize_text()` |
-| **Create File** | "Create a file called notes.txt" | `create_file()` ⚠️ Requires approval |
-| **Write Code** | "Write a Python retry function and save it to retry.py" | `generate_and_write_code()` ⚠️ Requires approval |
+### Capabilities
+- **General Chat:** Normal conversational AI (`general_chat()` tool).
+- **Summarization:** "Summarize this long text: ..." (`summarize_text()` tool).
+- **File Creation:** "Make a new file called data.csv" (`create_file()` tool).
+- **Code Generation:** "Write a Python retry loop and save it to retry.py" (`generate_and_write_code()` tool).
 
-### Compound Commands (Bonus ✅)
-> "Summarize this text and save it to summary.txt"
-
-The LLM returns a JSON array and both actions are executed sequentially.
+### ✨ Assignment Bonus Features Implemented
+* ✅ **Compound Commands:** Say *"Summarize this and save it to summary.txt"*. The LLM outputs an array of JSON objects, and the system executes them sequentially.
+* ✅ **Human-in-the-Loop:** Before ANY file is created or written to, the chat UI halts and presents "Approve" / "Deny" buttons.
+* ✅ **Graceful Degradation:** If the LLM completely fails to output JSON, or the audio is garbled, the system automatically catches the exception and falls back to a polite conversational response.
+* ✅ **Memory:** Streamlit's session state ensures the entire conversation history context is passed back to the LLM on every turn.
 
 ---
 
 ## 🔒 Safety Constraint
 
-All file operations are **strictly sandboxed** to `./output/` using `os.path.realpath()` validation. Any path traversal attempt (e.g., `../../secret.txt`) is rejected before reaching the filesystem.
-
----
-
-## ✨ Bonus Features
-
-| Feature | Status | Implementation |
-|---------|--------|---------------|
-| Compound Commands | ✅ | LLM outputs JSON array; app loops over each action |
-| Human-in-the-Loop | ✅ | `create_file` + `write_code` show Approve/Deny buttons |
-| Graceful Degradation | ✅ | All exceptions → fallback `general_chat` |
-| Memory | ✅ | `StreamlitChatMessageHistory` + `st.session_state` |
-
----
-
-## 🛠️ Hardware Note (STT Choice)
-
-Running `openai/whisper-large-v3` locally on a **CPU-only Windows machine** requires:
-- ~4 GB RAM for model loading
-- 30–120 seconds transcription time per utterance
-
-This makes the UX unusable. Instead, we use **Groq's hosted Whisper API** which delivers:
-- Sub-second transcription
-- Free tier (generous limits)
-- Zero local CPU usage (keeps CPU free for Ollama)
-
-This trade-off is intentional and documented here per the assignment requirements.
-
----
-
-## 📁 Project Structure
-
-```
-voice-ai-agent/
-├── app.py                 # Main Streamlit application
-├── audio_processor.py     # STT via Groq Whisper
-├── tools.py               # Tool implementations
-├── requirements.txt       # Python dependencies
-├── .env.example           # Environment template
-├── .gitignore
-├── README.md
-└── output/                # ← All agent-created files land here (gitignored)
-```
-
----
-
-## 🐛 Troubleshooting
-
-| Issue | Fix |
-|-------|-----|
-| `GROQ_API_KEY not found` | Make sure `.env` exists and is populated |
-| `Connection refused` (Ollama) | Run `ollama serve` in a separate terminal |
-| `sounddevice` error | Install PortAudio: `winget install -e --id PortAudio.PortAudio` or use file upload |
-| Model not found | Run `ollama pull qwen2.5:3b` (or your chosen tag) |
-
----
-
-## 📜 License
-
-MIT
+All file operations are **strictly sandboxed** to the `./output/` directory within the project folder. No matter what prompt the AI generates, `os.path.realpath()` validation guarantees it cannot escape `output/`. A request for `../../windows/system32/secret.txt` will fail safely.
