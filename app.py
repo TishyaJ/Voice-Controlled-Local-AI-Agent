@@ -45,7 +45,7 @@ HUMAN_IN_LOOP = {"create_file", "write_code"}
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Voice AI Agent",
-    page_icon="🎙️",
+    page_icon=":microphone:",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -323,21 +323,21 @@ def run_pipeline(audio_bytes: bytes, file_ext: str = "wav"):
     pipeline: list[dict] = []
 
     # ── 1. STT ───────────────────────────────────────────────────────────────
-    with st.spinner("🎤 Transcribing via Groq Whisper…"):
+    with st.spinner("Transcribing via Groq Whisper..."):
         transcript, err = transcribe_audio(audio_bytes, file_ext=file_ext)
 
     if err or not transcript.strip():
         msg = err or "Empty transcription — please try again."
         pipeline.append({"badge": "pill-error", "label": "STT Error", "content": msg})
         _add_message("user", "(unintelligible audio)", [])
-        _add_message("assistant", f"⚠️ {msg}", pipeline)
+        _add_message("assistant", f"[ERROR] {msg}", pipeline)
         return
 
     pipeline.append({"badge": "pill-transcript", "label": "Transcript", "content": transcript})
     _add_message("user", transcript, [])
 
     # ── 2. Classify ──────────────────────────────────────────────────────────
-    with st.spinner("🧠 Classifying intent…"):
+    with st.spinner("Classifying intent..."):
         actions = classify(transcript)
 
     pipeline.append({
@@ -354,8 +354,8 @@ def run_pipeline(audio_bytes: bytes, file_ext: str = "wav"):
             st.session_state.pending_actions.append(action)
             pipeline.append({
                 "badge": "pill-intent",
-                "label": "⏸ Pending",
-                "content": f"`{intent}` → `{action.get('filename','?')}` (awaiting approval)",
+                "label": "[PENDING]",
+                "content": f"{intent} -> {action.get('filename','?')} (awaiting approval)",
             })
         else:
             pipeline.append({"badge": "pill-action", "label": "Action", "content": f"Executing: {intent}"})
@@ -365,7 +365,7 @@ def run_pipeline(audio_bytes: bytes, file_ext: str = "wav"):
 
     combined = "\n\n---\n\n".join(safe_results) if safe_results else ""
     if not combined and st.session_state.pending_actions:
-        combined = "⏸ File operation is waiting for your **Approve / Deny**."
+        combined = "File operation is waiting for your **Approve / Deny**."
 
     _add_message("assistant", combined, pipeline)
 
@@ -383,21 +383,21 @@ def _add_message(role: str, content: str, pipeline: list[dict]):
 # ══════════════════════════════════════════════════════════════════════════════
 
 with st.sidebar:
-    st.markdown("# 🎙️ Voice AI Agent")
+    st.markdown("# Voice AI Agent")
     st.caption("Speak · Classify · Execute")
     st.divider()
 
     # ── Mic ──────────────────────────────────────────────────────────────────
-    st.markdown('<p class="sidebar-label">🎤 Microphone</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sidebar-label">Microphone</p>', unsafe_allow_html=True)
 
     rec_duration = st.slider("Duration (s)", 3, 30, 5, key="rec_dur", label_visibility="collapsed")
 
     col_btn, col_status = st.columns([1, 1])
     with col_btn:
-        rec_btn = st.button("⏺ Record", key="btn_rec", use_container_width=True, type="primary")
+        rec_btn = st.button("Record", key="btn_rec", use_container_width=True, type="primary")
     with col_status:
         if st.session_state.get("_recording"):
-            st.markdown('<span class="rec-badge">🔴 REC</span>', unsafe_allow_html=True)
+            st.markdown('<span class="rec-badge">REC</span>', unsafe_allow_html=True)
 
     if rec_btn:
         st.session_state["_recording"] = True
@@ -418,14 +418,14 @@ with st.sidebar:
 
     if st.session_state.recorded_bytes:
         st.audio(st.session_state.recorded_bytes, format="audio/wav")
-        if st.button("▶ Process Recording", key="btn_proc_rec", use_container_width=True):
+        if st.button("Process Recording", key="btn_proc_rec", use_container_width=True):
             data = st.session_state.recorded_bytes
             st.session_state.recorded_bytes = None
             run_pipeline(data, file_ext="wav")
             st.rerun()
 
     # ── File Upload ───────────────────────────────────────────────────────────
-    st.markdown('<p class="sidebar-label">📁 Upload Audio</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sidebar-label">Upload Audio</p>', unsafe_allow_html=True)
 
     uploaded = st.file_uploader(
         "WAV / MP3 / M4A / OGG",
@@ -435,14 +435,14 @@ with st.sidebar:
     )
     if uploaded:
         st.audio(uploaded)
-        if st.button("▶ Transcribe & Run", key="btn_proc_upload", use_container_width=True, type="primary"):
+        if st.button("Transcribe & Run", key="btn_proc_upload", use_container_width=True, type="primary"):
             uploaded.seek(0)
             ext = Path(uploaded.name).suffix.lstrip(".")
             run_pipeline(uploaded.read(), file_ext=ext)
             st.rerun()
 
     # ── Output folder ─────────────────────────────────────────────────────────
-    st.markdown('<p class="sidebar-label">📂 Output Folder</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sidebar-label">Output Folder</p>', unsafe_allow_html=True)
 
     files = sorted(f for f in OUTPUT_DIR.rglob("*") if f.is_file())
     if files:
@@ -450,7 +450,7 @@ with st.sidebar:
             rel  = f.relative_to(OUTPUT_DIR)
             size = f.stat().st_size
             st.markdown(
-                f'<span class="file-pill">📄 {rel} <span style="opacity:.55">({size:,} B)</span></span>',
+                f'<span class="file-pill">{rel} <span style="opacity:.55">({size:,} B)</span></span>',
                 unsafe_allow_html=True,
             )
     else:
@@ -458,7 +458,7 @@ with st.sidebar:
 
     # ── Clear history ─────────────────────────────────────────────────────────
     st.divider()
-    if st.button("🗑 Clear Chat History", key="btn_clear", use_container_width=True):
+    if st.button("Clear Chat History", key="btn_clear", use_container_width=True):
         st.session_state.messages        = []
         st.session_state.pending_actions = []
         st.rerun()
@@ -471,10 +471,9 @@ with st.sidebar:
 
 st.markdown("""
 <div class="agent-topbar">
-  <div style="font-size:1.7rem">🎙️</div>
   <div>
     <h2>Voice AI Agent</h2>
-    <p>Audio in → intent classified → local tools executed</p>
+    <p>Audio in &rarr; intent classified &rarr; local tools executed</p>
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -483,7 +482,6 @@ st.markdown("""
 if not st.session_state.messages:
     st.markdown("""
     <div style="text-align:center; margin-top:4rem; color:rgba(255,255,255,0.3);">
-      <div style="font-size:3rem; margin-bottom:1rem;">🎙️</div>
       <p style="font-size:1rem; font-weight:500;">Record audio or type a command below to get started.</p>
       <p style="font-size:0.82rem; margin-top:0.5rem;">
         Try: <em>"Summarize this: ..."</em> &nbsp;|&nbsp;
@@ -494,12 +492,11 @@ if not st.session_state.messages:
     """, unsafe_allow_html=True)
 else:
     for msg in st.session_state.messages:
-        avatar = "🧑" if msg["role"] == "user" else "🤖"
-        with st.chat_message(msg["role"], avatar=avatar):
+        with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
             # Collapsible pipeline log (assistant messages only)
             if msg["role"] == "assistant" and msg.get("pipeline"):
-                with st.expander("⚙️ View Execution Steps", expanded=False):
+                with st.expander("View Execution Steps", expanded=False):
                     rows_html = ""
                     for step in msg["pipeline"]:
                         content = (
@@ -519,7 +516,7 @@ else:
 # ── Pending actions — Approve / Deny ─────────────────────────────────────────
 if st.session_state.pending_actions:
     st.markdown("---")
-    st.warning("⏸ **File operations pending your approval:**", icon="🔐")
+    st.warning("**File operations pending your approval:**")
 
     to_remove: list[int] = []
 
@@ -541,9 +538,9 @@ if st.session_state.pending_actions:
 
         a_col, d_col, _ = st.columns([1, 1, 4])
         with a_col:
-            if st.button("✅ Approve", key=f"approve_{idx}", use_container_width=True, type="primary"):
+            if st.button("Approve", key=f"approve_{idx}", use_container_width=True, type="primary"):
                 pipeline = [
-                    {"badge": "pill-action", "label": "Approved", "content": f"{intent} → {fname}"},
+                    {"badge": "pill-action", "label": "Approved", "content": f"{intent} -> {fname}"},
                 ]
                 result = execute_action(action)
                 pipeline.append({"badge": "pill-result", "label": "Result", "content": result[:400]})
@@ -551,9 +548,9 @@ if st.session_state.pending_actions:
                 to_remove.append(idx)
                 st.rerun()
         with d_col:
-            if st.button("❌ Deny", key=f"deny_{idx}", use_container_width=True):
-                _add_message("assistant", f"❌ Denied: `{intent}` on `{fname}`", [
-                    {"badge": "pill-error", "label": "Denied", "content": f"User denied {intent} → {fname}"}
+            if st.button("Deny", key=f"deny_{idx}", use_container_width=True):
+                _add_message("assistant", f"[DENIED] {intent} on {fname}", [
+                    {"badge": "pill-error", "label": "Denied", "content": f"User denied {intent} -> {fname}"}
                 ])
                 to_remove.append(idx)
                 st.rerun()
@@ -569,7 +566,7 @@ if prompt := st.chat_input("Type a command or question…"):
         {"badge": "pill-transcript", "label": "Text Input", "content": prompt},
     ]
 
-    with st.spinner("🧠 Classifying intent…"):
+    with st.spinner("Classifying intent..."):
         actions = classify(prompt)
 
     pipeline.append({
@@ -585,8 +582,8 @@ if prompt := st.chat_input("Type a command or question…"):
             st.session_state.pending_actions.append(action)
             pipeline.append({
                 "badge": "pill-intent",
-                "label": "⏸ Pending",
-                "content": f"`{intent}` → `{action.get('filename','?')}` (awaiting approval)",
+                "label": "[PENDING]",
+                "content": f"{intent} -> {action.get('filename','?')} (awaiting approval)",
             })
         else:
             pipeline.append({"badge": "pill-action", "label": "Action", "content": f"Executing: {intent}"})
@@ -594,6 +591,6 @@ if prompt := st.chat_input("Type a command or question…"):
             pipeline.append({"badge": "pill-result", "label": "Result", "content": result[:400]})
             results.append(result)
 
-    combined = "\n\n---\n\n".join(results) if results else "⏸ Awaiting your approval in the panel above."
+    combined = "\n\n---\n\n".join(results) if results else "Awaiting your approval in the panel above."
     _add_message("assistant", combined, pipeline)
     st.rerun()

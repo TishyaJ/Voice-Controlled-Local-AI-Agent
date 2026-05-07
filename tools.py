@@ -47,15 +47,15 @@ def create_file(filename: str) -> str:
     """Create an empty file inside the output/ sandbox."""
     path = _safe_path(filename)
     if path is None:
-        return f"❌ Safety violation: '{filename}' resolves outside the output/ directory."
+        return f"[ERROR] Safety violation: '{filename}' resolves outside the output/ directory."
 
     path.parent.mkdir(parents=True, exist_ok=True)
 
     if path.exists():
-        return f"ℹ️  File already exists: `output/{path.relative_to(OUTPUT_DIR)}`"
+        return f"[EXISTS] File already exists: output/{path.relative_to(OUTPUT_DIR)}"
 
     path.touch()
-    return f"✅ Created empty file: `output/{path.relative_to(OUTPUT_DIR)}`"
+    return f"[OK] Created empty file: output/{path.relative_to(OUTPUT_DIR)}"
 
 
 # ── Tool 2: Write code ───────────────────────────────────────────────────────
@@ -64,14 +64,13 @@ def write_code(filename: str, code: str) -> str:
     """Write *code* to *filename* inside the output/ sandbox."""
     path = _safe_path(filename)
     if path is None:
-        return f"❌ Safety violation: '{filename}' resolves outside the output/ directory."
+        return f"[ERROR] Safety violation: '{filename}' resolves outside the output/ directory."
 
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(textwrap.dedent(code), encoding="utf-8")
     line_count = len(code.splitlines())
     return (
-        f"✅ Wrote {line_count} lines of code to "
-        f"`output/{path.relative_to(OUTPUT_DIR)}`"
+        f"[OK] Wrote {line_count} lines to output/{path.relative_to(OUTPUT_DIR)}"
     )
 
 
@@ -83,7 +82,7 @@ def summarize_text(text: str, save_to: Optional[str] = None) -> str:
     Optionally save the summary to *save_to* (inside output/).
     """
     if not text.strip():
-        return "❌ No text provided to summarize."
+        return "[ERROR] No text provided to summarize."
 
     llm = OllamaLLM(model=_OLLAMA_MODEL, temperature=0.3)
     prompt = (
@@ -94,18 +93,18 @@ def summarize_text(text: str, save_to: Optional[str] = None) -> str:
     try:
         summary = llm.invoke(prompt)
     except Exception as exc:
-        return f"❌ Summarization failed: {exc}"
+        return f"[ERROR] Summarization failed: {exc}"
 
-    result = f"📝 **Summary:**\n\n{summary}"
+    result = f"**Summary:**\n\n{summary}"
 
     if save_to:
         path = _safe_path(save_to)
         if path is None:
-            result += f"\n\n❌ Could not save — unsafe path: '{save_to}'"
+            result += f"\n\n[ERROR] Could not save — unsafe path: '{save_to}'"
         else:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(summary, encoding="utf-8")
-            result += f"\n\n✅ Summary saved to `output/{path.relative_to(OUTPUT_DIR)}`"
+            result += f"\n\n[SAVED] output/{path.relative_to(OUTPUT_DIR)}"
 
     return result
 
@@ -136,7 +135,7 @@ def general_chat(message: str, history: list[dict] | None = None) -> str:
         response = llm.invoke(prompt)
         return response.strip()
     except Exception as exc:
-        return f"❌ Chat failed: {exc}"
+        return f"[ERROR] Chat failed: {exc}"
 
 
 # ── Tool 5: Generate code with LLM then write ────────────────────────────────
@@ -157,7 +156,7 @@ def generate_and_write_code(description: str, filename: str) -> str:
     try:
         generated_code = llm.invoke(prompt)
     except Exception as exc:
-        return f"❌ Code generation failed: {exc}"
+        return f"[ERROR] Code generation failed: {exc}"
 
     # Strip markdown fences if the model included them anyway
     generated_code = re.sub(r"^```[a-z]*\n?", "", generated_code, flags=re.MULTILINE)
